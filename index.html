@@ -20,7 +20,7 @@
         <span class="btn__icon">🎲</span> 随机一道
       </button>
       <button type="button" class="btn btn--accent" id="btnAdd">
-        <span class="btn__icon">📷</span> 拍照录入
+        <span class="btn__icon">➕</span> 添加菜品
       </button>
     </section>
 
@@ -32,7 +32,7 @@
     </section>
 
     <section class="dish-list" id="dishList" aria-live="polite"></section>
-    <p class="empty-state" id="emptyState" hidden>还没有菜品，点「拍照录入」添加第一道菜吧</p>
+    <p class="empty-state" id="emptyState" hidden>还没有菜品，点「添加菜品」录入第一道菜吧</p>
   </main>
 
   <!-- 随机结果 -->
@@ -41,6 +41,9 @@
       <p class="random-result__label">今天吃</p>
       <h2 class="random-result__name" id="randomName"></h2>
       <span class="tag" id="randomCategory"></span>
+      <div class="random-result__photo" id="randomPhoto" hidden>
+        <img id="randomImg" alt="">
+      </div>
       <div class="modal__actions">
         <button type="button" class="btn btn--ghost" id="btnRandomAgain">再抽一次</button>
         <button type="button" class="btn btn--primary" id="btnRandomClose">就这个！</button>
@@ -51,21 +54,30 @@
   <!-- 添加/编辑 -->
   <dialog class="modal" id="dishModal">
     <form class="modal__content dish-form" id="dishForm">
-      <h2 class="modal__title" id="dishModalTitle">拍照录入菜品</h2>
+      <h2 class="modal__title" id="dishModalTitle">添加菜品</h2>
 
       <div class="photo-area" id="photoArea">
-        <input type="file" id="photoInput" accept="image/*" capture="environment" hidden>
+        <input type="file" id="cameraInput" accept="image/*" capture="environment" hidden>
+        <input type="file" id="uploadInput" accept="image/*" hidden>
         <div class="photo-preview" id="photoPreview" hidden>
           <img id="photoImg" alt="菜品照片">
-          <button type="button" class="photo-preview__retake" id="btnRetake">重拍</button>
+          <div class="photo-preview__actions">
+            <button type="button" class="photo-preview__btn" id="btnChangePhoto">更换</button>
+            <button type="button" class="photo-preview__btn" id="btnRemovePhoto">删除图片</button>
+          </div>
         </div>
-        <button type="button" class="photo-placeholder" id="btnTakePhoto">
-          <span class="photo-placeholder__icon">📷</span>
-          <span>拍照或选图</span>
-          <span class="photo-placeholder__hint">AI 识图自动填菜名和分类</span>
-        </button>
+        <div class="photo-placeholder" id="photoPlaceholder">
+          <span class="photo-placeholder__icon">🖼</span>
+          <span>添加菜品图片（可选）</span>
+          <div class="photo-actions">
+            <button type="button" class="btn btn--ghost photo-action-btn" id="btnCamera">📷 拍照</button>
+            <button type="button" class="btn btn--ghost photo-action-btn" id="btnUpload">📁 上传图片</button>
+          </div>
+          <span class="photo-placeholder__hint">上传后可点「AI 识图」自动填菜名和分类</span>
+        </div>
       </div>
 
+      <button type="button" class="btn btn--ghost btn--full" id="btnAnalyze" hidden>✨ AI 识图填名</button>
       <div class="analyze-status" id="analyzeStatus" hidden></div>
 
       <label class="field">
@@ -83,6 +95,23 @@
         <button type="submit" class="btn btn--primary" id="btnSaveDish">保存</button>
       </div>
     </form>
+  </dialog>
+
+  <!-- 查看详情 -->
+  <dialog class="modal" id="detailModal">
+    <div class="modal__content detail-view">
+      <div class="detail-view__photo" id="detailPhoto" hidden>
+        <img id="detailImg" alt="">
+      </div>
+      <h2 class="detail-view__name" id="detailName"></h2>
+      <span class="tag" id="detailCategory"></span>
+      <p class="detail-view__meta" id="detailMeta"></p>
+      <div class="modal__actions detail-view__actions">
+        <button type="button" class="btn btn--ghost" id="btnDetailDelete">删除</button>
+        <button type="button" class="btn btn--ghost" id="btnDetailEdit">编辑</button>
+        <button type="button" class="btn btn--primary" id="btnDetailClose">关闭</button>
+      </div>
+    </div>
   </dialog>
 
   <!-- 设置 -->

@@ -173,16 +173,54 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 14px 16px;
+  padding: 10px 12px 10px 10px;
   background: var(--surface);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
 }
 
-.dish-card__name {
+.dish-card__thumb {
+  width: 52px;
+  height: 52px;
+  border-radius: 10px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.dish-card__thumb--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  font-size: 1.25rem;
+}
+
+.dish-card__body {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+  padding: 4px 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+
+.dish-card__body:hover .dish-card__name {
+  color: var(--primary);
+}
+
+.dish-card__name {
   font-size: 1rem;
   font-weight: 500;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .dish-card__actions {
@@ -271,9 +309,39 @@ body {
   margin-bottom: 12px;
 }
 
+.random-result__photo {
+  margin: 12px 0 4px;
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.random-result__photo img {
+  width: 100%;
+  max-height: 200px;
+  object-fit: cover;
+  display: block;
+}
+
 /* Photo area */
 .photo-area {
-  margin-bottom: 16px;
+  margin-bottom: 12px;
+}
+
+.photo-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.photo-action-btn {
+  flex: 1;
+  padding: 8px 10px !important;
+  font-size: 0.8125rem !important;
+}
+
+.btn--full {
+  width: 100%;
+  margin-bottom: 12px;
 }
 
 .photo-placeholder {
@@ -320,10 +388,17 @@ body {
   display: block;
 }
 
-.photo-preview__retake {
+.photo-preview__actions {
   position: absolute;
   bottom: 10px;
+  left: 10px;
   right: 10px;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.photo-preview__btn {
   padding: 6px 12px;
   background: rgba(0, 0, 0, 0.6);
   color: #fff;
@@ -416,6 +491,40 @@ body {
 
 .fab-settings:hover {
   background: var(--bg);
+}
+
+/* Detail view */
+.detail-view {
+  text-align: center;
+}
+
+.detail-view__photo {
+  margin-bottom: 16px;
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.detail-view__photo img {
+  width: 100%;
+  max-height: 260px;
+  object-fit: cover;
+  display: block;
+}
+
+.detail-view__name {
+  font-size: 1.5rem;
+  margin-bottom: 10px;
+}
+
+.detail-view__meta {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  margin-top: 12px;
+}
+
+.detail-view__actions {
+  justify-content: center;
+  flex-wrap: wrap;
 }
 
 @media (min-width: 560px) {
