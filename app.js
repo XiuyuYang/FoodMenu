@@ -3,19 +3,20 @@
 
   var STORAGE_KEY = 'foodmenu_data';
   var CATEGORIES = ['荤菜', '素菜', '汤', '主食', '小吃'];
-  var GEMINI_MODEL = 'gemini-2.0-flash';
   var MAX_IMAGE_WIDTH = 800;
   var JPEG_QUALITY = 0.75;
 
   var state = {
     dishes: [],
-    settings: { geminiApiKey: '' },
+    settings: {},
     filterCategory: '全部',
     searchQuery: '',
     editingId: null,
     viewingId: null,
     pendingImage: null,
-    imageRemoved: false
+    imageRemoved: false,
+    user: null,
+    authMode: 'login'
   };
 
   var dishList = document.getElementById('dishList');
@@ -46,32 +47,77 @@
   var detailPhoto = document.getElementById('detailPhoto');
   var detailImg = document.getElementById('detailImg');
   var settingsModal = document.getElementById('settingsModal');
-  var apiKeyInput = document.getElementById('apiKeyInput');
   var importInput = document.getElementById('importInput');
+  var authModal = document.getElementById('authModal');
+  var authForm = document.getElementById('authForm');
+  var authTitle = document.getElementById('authTitle');
+  var authEmail = document.getElementById('authEmail');
+  var authPassword = document.getElementById('authPassword');
+  var authStatus = document.getElementById('authStatus');
+  var btnAuthSubmit = document.getElementById('btnAuthSubmit');
+  var headerUser = document.getElementById('headerUser');
+  var headerEmail = document.getElementById('headerEmail');
 
-  function loadData() {
+  function getBasePath() {
+    var scripts = document.getElementsByTagName('script');
+    for (var i = 0; i < scripts.length; i++) {
+      var src = scripts[i].getAttribute('src');
+      if (src && src.indexOf('app.js') !== -1) {
+        if (src.charAt(0) === '/') {
+          return src.replace(/\/app\.js(\?.*)?$/, '') || '';
+        }
+        var path = window.location.pathname;
+        if (path.charAt(path.length - 1) === '/') {
+          return path.slice(0, -1);
+        }
+        return path.replace(/\/[^/]*$/, '') || '';
+      }
+    }
+    return '';
+  }
+
+  var BASE_PATH = getBasePath();
+
+  function apiFetch(path, options) {
+    options = options || {};
+    var headers = options.headers || {};
+    if (options.body && typeof options.body === 'object') {
+      headers['Content-Type'] = 'application/json';
+      options.body = JSON.stringify(options.body);
+    }
+    options.credentials = 'include';
+    options.headers = headers;
+    return fetch(BASE_PATH + '/api/' + path, options).then(function (res) {
+      return res.json().then(function (data) {
+        if (!res.ok) {
+          var err = new Error(data.error || '请求失败');
+          err.status = res.status;
+          throw err;
+        }
+        return data;
+      });
+    });
+  }
+
+  function loadLocalData() {
     try {
       var raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         var data = JSON.parse(raw);
-        state.dishes = data.dishes || [];
-        state.settings = data.settings || { geminiApiKey: '' };
+        return { dishes: data.dishes || [], settings: {} };
       }
     } catch (e) {
-      console.error('load failed', e);
+      console.error('load local failed', e);
     }
+    return { dishes: [], settings: {} };
   }
 
-  function saveData() {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        dishes: state.dishes,
-        settings: state.settings
-      }));
-    } catch (e) {
-      alert('保存失败，存储空间可能已满。请删除部分菜品图片或导出备份后清理。');
-      throw e;
-    }
+  function clearLocalData() {
+    localStorage.removeItem(STORAGE_KEY);
+  }
+
+  function loadData() {
+    /* 兼容旧调用，实际数据从云端加载 */
   }
 
   function generateId() {
@@ -320,42 +366,64 @@
     var name = dishName.value.trim();
     if (!name) return;
 
-    var now = new Date().toISOString();
     var existing = state.editingId ? getDishById(state.editingId) : null;
-    var dish = {
-      id: state.editingId || generateId(),
+    var payload = {
       name: name,
       category: dishCategory.value,
       image: resolveDishImage(existing),
-      createdAt: existing ? existing.createdAt : now,
-      updatedAt: now
+      imageRemoved: state.imageRemoved
     };
 
-    if (state.editingId) {
-      state.dishes = state.dishes.map(function (d) {
-        return d.id === state.editingId ? dish : d;
-      });
-    } else {
+    if (!state.editingId) {
       var dup = state.dishes.some(function (d) {
-        return d.name === dish.name && d.category === dish.category;
+        return d.name === payload.name && d.category === payload.category;
       });
       if (dup && !confirm('已有同名同分类的菜品，仍要添加吗？')) return;
-      state.dishes.push(dish);
     }
 
-    saveData();
-    dishModal.close();
-    renderDishList();
+    var btn = document.getElementById('btnSaveDish');
+    btn.disabled = true;
+    btn.textContent = '保存中…';
+
+    var req;
+    if (state.editingId) {
+      req = apiFetch('dishes/' + state.editingId, { method: 'PUT', body: payload });
+    } else {
+      payload.id = generateId();
+      req = apiFetch('dishes', { method: 'POST', body: payload });
+    }
+
+    req.then(function (data) {
+      var dish = data.dish;
+      if (state.editingId) {
+        state.dishes = state.dishes.map(function (d) {
+          return d.id === state.editingId ? dish : d;
+        });
+      } else {
+        state.dishes.push(dish);
+      }
+      dishModal.close();
+      renderDishList();
+    }).catch(function (err) {
+      alert('保存失败：' + err.message);
+    }).finally(function () {
+      btn.disabled = false;
+      btn.textContent = '保存';
+    });
   }
 
   function deleteDish(id) {
     var dish = getDishById(id);
     if (!dish) return;
     if (!confirm('确定删除「' + dish.name + '」吗？')) return;
-    state.dishes = state.dishes.filter(function (d) { return d.id !== id; });
-    saveData();
-    if (detailModal.open && state.viewingId === id) detailModal.close();
-    renderDishList();
+
+    apiFetch('dishes/' + id, { method: 'DELETE' }).then(function () {
+      state.dishes = state.dishes.filter(function (d) { return d.id !== id; });
+      if (detailModal.open && state.viewingId === id) detailModal.close();
+      renderDishList();
+    }).catch(function (err) {
+      alert('删除失败：' + err.message);
+    });
   }
 
   function pickRandom() {
@@ -377,61 +445,18 @@
   }
 
   function analyzePhoto() {
-    var apiKey = state.settings.geminiApiKey;
-    if (!apiKey) {
-      setAnalyzeStatus('error', '请先在设置中填写 Gemini API Key');
-      return;
-    }
     if (!state.pendingImage) {
       setAnalyzeStatus('error', '请先拍照或上传图片');
       return;
     }
-
-    var base64 = state.pendingImage.split(',')[1];
-    var mime = 'image/jpeg';
 
     setAnalyzeStatus('loading', '正在识图分析…');
     btnAnalyze.disabled = true;
     dishName.disabled = true;
     dishCategory.disabled = true;
 
-    var categoriesStr = CATEGORIES.join('、');
-    var prompt =
-      '这是一道菜的照片。请识别这道菜的中文名称，并从以下分类中选择最合适的一个：' +
-      categoriesStr +
-      '。只返回 JSON，格式为 {"name":"菜名","category":"分类"}，不要其他文字。' +
-      '如果无法识别，name 填"未知菜品"，category 填"荤菜"。';
-
-    var url = 'https://generativelanguage.googleapis.com/v1beta/models/' +
-      GEMINI_MODEL + ':generateContent?key=' + encodeURIComponent(apiKey);
-
-    fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{
-          parts: [
-            { text: prompt },
-            { inline_data: { mime_type: mime, data: base64 } }
-          ]
-        }],
-        generationConfig: {
-          responseMimeType: 'application/json',
-          temperature: 0.2
-        }
-      })
-    })
-      .then(function (res) {
-        if (!res.ok) {
-          return res.json().then(function (err) {
-            throw new Error((err.error && err.error.message) || 'API 请求失败');
-          });
-        }
-        return res.json();
-      })
-      .then(function (data) {
-        var text = data.candidates[0].content.parts[0].text;
-        var result = JSON.parse(text);
+    apiFetch('analyze', { method: 'POST', body: { image: state.pendingImage } })
+      .then(function (result) {
         if (result.name) dishName.value = result.name;
         if (result.category && CATEGORIES.indexOf(result.category) !== -1) {
           dishCategory.value = result.category;
@@ -449,14 +474,7 @@
   }
 
   function openSettings() {
-    apiKeyInput.value = state.settings.geminiApiKey || '';
     settingsModal.showModal();
-  }
-
-  function saveSettings() {
-    state.settings.geminiApiKey = apiKeyInput.value.trim();
-    saveData();
-    settingsModal.close();
   }
 
   function exportBackup() {
@@ -477,25 +495,142 @@
       try {
         var data = JSON.parse(reader.result);
         if (!data.dishes || !Array.isArray(data.dishes)) throw new Error('格式不正确');
-        if (!confirm('导入将覆盖现有 ' + state.dishes.length + ' 道菜，共导入 ' + data.dishes.length + ' 道，确定吗？')) return;
-        state.dishes = data.dishes.map(function (d) {
-          return {
-            id: d.id || generateId(),
-            name: d.name,
-            category: CATEGORIES.indexOf(d.category) !== -1 ? d.category : '荤菜',
-            image: d.image || null,
-            createdAt: d.createdAt || new Date().toISOString(),
-            updatedAt: d.updatedAt || d.createdAt || new Date().toISOString()
-          };
+        if (!confirm('导入将合并 ' + data.dishes.length + ' 道菜到云端（跳过已存在的），确定吗？')) return;
+        apiFetch('sync', { method: 'POST', body: { dishes: data.dishes } }).then(function (result) {
+          return loadDishesFromServer().then(function () {
+            alert('导入成功！新增 ' + result.imported + ' 道菜');
+          });
+        }).catch(function (err) {
+          alert('导入失败：' + err.message);
         });
-        saveData();
-        renderDishList();
-        alert('导入成功！');
       } catch (e) {
         alert('导入失败：' + e.message);
       }
     };
     reader.readAsText(file);
+  }
+
+  function setAuthStatus(type, msg) {
+    authStatus.hidden = false;
+    authStatus.className = 'auth-status auth-status--' + type;
+    authStatus.textContent = msg;
+  }
+
+  function hideAuthStatus() {
+    authStatus.hidden = true;
+  }
+
+  function setAuthMode(mode) {
+    state.authMode = mode;
+    var isLogin = mode === 'login';
+    authTitle.textContent = isLogin ? '登录账号' : '注册账号';
+    btnAuthSubmit.textContent = isLogin ? '登录' : '注册';
+    authPassword.autocomplete = isLogin ? 'current-password' : 'new-password';
+    document.getElementById('authTabLogin').classList.toggle('auth-tab--active', isLogin);
+    document.getElementById('authTabRegister').classList.toggle('auth-tab--active', !isLogin);
+    hideAuthStatus();
+  }
+
+  function showAuthModal() {
+    setAuthMode('login');
+    authEmail.value = '';
+    authPassword.value = '';
+    authModal.showModal();
+  }
+
+  function updateHeaderUser() {
+    if (state.user) {
+      headerUser.hidden = false;
+      headerEmail.textContent = state.user.email;
+    } else {
+      headerUser.hidden = true;
+    }
+  }
+
+  function loadDishesFromServer() {
+    return apiFetch('dishes').then(function (data) {
+      state.dishes = data.dishes || [];
+      renderDishList();
+      return state.dishes;
+    });
+  }
+
+  function offerLocalMigration(localDishes) {
+    if (!localDishes || localDishes.length === 0) return Promise.resolve();
+    if (state.dishes.length > 0) return Promise.resolve();
+    return new Promise(function (resolve) {
+      if (!confirm('检测到本机有 ' + localDishes.length + ' 道菜未同步，是否上传到云端？')) {
+        resolve();
+        return;
+      }
+      apiFetch('sync', { method: 'POST', body: { dishes: localDishes } })
+        .then(function (result) {
+          clearLocalData();
+          return loadDishesFromServer().then(function () {
+            alert('已同步 ' + result.imported + ' 道菜到云端');
+            resolve();
+          });
+        })
+        .catch(function (err) {
+          alert('同步失败：' + err.message);
+          resolve();
+        });
+    });
+  }
+
+  function onAuthSuccess(data) {
+    state.user = data.user;
+    authModal.close();
+    updateHeaderUser();
+    var local = loadLocalData();
+    return loadDishesFromServer()
+      .then(function () { return offerLocalMigration(local.dishes); });
+  }
+
+  function handleAuthSubmit(e) {
+    e.preventDefault();
+    hideAuthStatus();
+    var email = authEmail.value.trim();
+    var password = authPassword.value;
+    if (!email || !password) return;
+
+    setAuthStatus('loading', state.authMode === 'login' ? '登录中…' : '注册中…');
+    btnAuthSubmit.disabled = true;
+
+    var path = state.authMode === 'login' ? 'auth/login' : 'auth/register';
+    apiFetch(path, { method: 'POST', body: { email: email, password: password } })
+      .then(onAuthSuccess)
+      .catch(function (err) {
+        setAuthStatus('error', err.message);
+      })
+      .finally(function () {
+        btnAuthSubmit.disabled = false;
+      });
+  }
+
+  function handleLogout() {
+    apiFetch('auth/logout', { method: 'POST' }).finally(function () {
+      state.user = null;
+      state.dishes = [];
+      updateHeaderUser();
+      renderDishList();
+      showAuthModal();
+    });
+  }
+
+  function initApp() {
+    populateCategorySelect();
+    renderCategoryFilters();
+    apiFetch('auth/me').then(function (data) {
+      state.user = data.user;
+      updateHeaderUser();
+      return loadDishesFromServer().then(function () {
+          var local = loadLocalData();
+          return offerLocalMigration(local.dishes);
+        });
+    }).catch(function () {
+      showAuthModal();
+    });
   }
 
   function openChangePhotoMenu() {
@@ -512,7 +647,7 @@
   document.getElementById('btnRandomClose').addEventListener('click', function () { randomModal.close(); });
   document.getElementById('btnCancelDish').addEventListener('click', function () { dishModal.close(); });
   document.getElementById('btnSettings').addEventListener('click', openSettings);
-  document.getElementById('btnSaveSettings').addEventListener('click', saveSettings);
+  document.getElementById('btnCloseSettings').addEventListener('click', function () { settingsModal.close(); });
   document.getElementById('btnExport').addEventListener('click', exportBackup);
   document.getElementById('btnImport').addEventListener('click', function () { importInput.click(); });
   document.getElementById('btnCamera').addEventListener('click', function () { cameraInput.click(); });
@@ -533,6 +668,14 @@
     if (state.viewingId) deleteDish(state.viewingId);
   });
 
+  authForm.addEventListener('submit', handleAuthSubmit);
+  authModal.addEventListener('cancel', function (e) {
+    if (!state.user) e.preventDefault();
+  });
+  document.getElementById('authTabLogin').addEventListener('click', function () { setAuthMode('login'); });
+  document.getElementById('authTabRegister').addEventListener('click', function () { setAuthMode('register'); });
+  document.getElementById('btnLogout').addEventListener('click', handleLogout);
+
   dishForm.addEventListener('submit', saveDish);
 
   searchInput.addEventListener('input', function () {
@@ -552,8 +695,5 @@
     importInput.value = '';
   });
 
-  loadData();
-  populateCategorySelect();
-  renderCategoryFilters();
-  renderDishList();
+  initApp();
 })();

@@ -3,4 +3,5 @@
 node_modules/
 .wrangler/
 README.md
-wrangler.toml
+proxy/
+temp/

@@ -12,6 +12,10 @@
   <header class="header">
     <h1 class="header__title">🍳 我的菜单</h1>
     <p class="header__subtitle">记录会做的菜，下次不用愁</p>
+    <div class="header__user" id="headerUser" hidden>
+      <span class="header__email" id="headerEmail"></span>
+      <button type="button" class="header__logout" id="btnLogout">退出</button>
+    </div>
   </header>
 
   <main class="main">
@@ -114,18 +118,39 @@
     </div>
   </dialog>
 
+  <!-- 登录/注册 -->
+  <dialog class="modal auth-modal" id="authModal">
+    <div class="modal__content auth-form">
+      <h2 class="modal__title" id="authTitle">登录账号</h2>
+      <p class="auth-form__hint">登录后菜品和图片会同步到云端，任意设备都能查看</p>
+
+      <div class="auth-tabs">
+        <button type="button" class="auth-tab auth-tab--active" id="authTabLogin" data-mode="login">登录</button>
+        <button type="button" class="auth-tab" id="authTabRegister" data-mode="register">注册</button>
+      </div>
+
+      <form id="authForm">
+        <label class="field">
+          <span class="field__label">邮箱</span>
+          <input type="email" class="field__input" id="authEmail" required placeholder="your@email.com" autocomplete="username">
+        </label>
+        <label class="field">
+          <span class="field__label">密码</span>
+          <input type="password" class="field__input" id="authPassword" required placeholder="至少 6 位" minlength="6" autocomplete="current-password">
+        </label>
+        <div class="auth-status" id="authStatus" hidden></div>
+        <button type="submit" class="btn btn--primary btn--full" id="btnAuthSubmit">登录</button>
+      </form>
+    </div>
+  </dialog>
+
   <!-- 设置 -->
   <button type="button" class="fab-settings" id="btnSettings" title="设置">⚙️</button>
 
   <dialog class="modal" id="settingsModal">
     <div class="modal__content">
-      <h2 class="modal__title">设置</h2>
-
-      <label class="field">
-        <span class="field__label">Gemini API Key</span>
-        <input type="password" class="field__input" id="apiKeyInput" placeholder="粘贴你的 API Key" autocomplete="off">
-        <span class="field__hint">仅保存在本机浏览器，用于识图分析</span>
-      </label>
+      <h2 class="modal__title">备份</h2>
+      <p class="field__hint" style="margin-bottom:16px">导出或导入菜品数据（JSON 格式）</p>
 
       <div class="settings-actions">
         <button type="button" class="btn btn--ghost" id="btnExport">导出备份</button>
@@ -134,7 +159,7 @@
       </div>
 
       <div class="modal__actions">
-        <button type="button" class="btn btn--primary" id="btnSaveSettings">保存</button>
+        <button type="button" class="btn btn--primary" id="btnCloseSettings">关闭</button>
       </div>
     </div>
   </dialog>
