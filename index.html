@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#e85d04">
+  <meta name="description" content="记录会做的菜，不知道吃什么就来翻一翻">
+  <title>我的菜单</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="header">
+    <h1 class="header__title">🍳 我的菜单</h1>
+    <p class="header__subtitle">记录会做的菜，下次不用愁</p>
+  </header>
+
+  <main class="main">
+    <section class="toolbar">
+      <button type="button" class="btn btn--primary" id="btnRandom">
+        <span class="btn__icon">🎲</span> 随机一道
+      </button>
+      <button type="button" class="btn btn--accent" id="btnAdd">
+        <span class="btn__icon">📷</span> 拍照录入
+      </button>
+    </section>
+
+    <section class="filters">
+      <div class="search-wrap">
+        <input type="search" class="search" id="searchInput" placeholder="搜索菜名…" autocomplete="off">
+      </div>
+      <div class="categories" id="categoryFilters" role="tablist"></div>
+    </section>
+
+    <section class="dish-list" id="dishList" aria-live="polite"></section>
+    <p class="empty-state" id="emptyState" hidden>还没有菜品，点「拍照录入」添加第一道菜吧</p>
+  </main>
+
+  <!-- 随机结果 -->
+  <dialog class="modal" id="randomModal">
+    <div class="modal__content random-result">
+      <p class="random-result__label">今天吃</p>
+      <h2 class="random-result__name" id="randomName"></h2>
+      <span class="tag" id="randomCategory"></span>
+      <div class="modal__actions">
+        <button type="button" class="btn btn--ghost" id="btnRandomAgain">再抽一次</button>
+        <button type="button" class="btn btn--primary" id="btnRandomClose">就这个！</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- 添加/编辑 -->
+  <dialog class="modal" id="dishModal">
+    <form class="modal__content dish-form" id="dishForm">
+      <h2 class="modal__title" id="dishModalTitle">拍照录入菜品</h2>
+
+      <div class="photo-area" id="photoArea">
+        <input type="file" id="photoInput" accept="image/*" capture="environment" hidden>
+        <div class="photo-preview" id="photoPreview" hidden>
+          <img id="photoImg" alt="菜品照片">
+          <button type="button" class="photo-preview__retake" id="btnRetake">重拍</button>
+        </div>
+        <button type="button" class="photo-placeholder" id="btnTakePhoto">
+          <span class="photo-placeholder__icon">📷</span>
+          <span>拍照或选图</span>
+          <span class="photo-placeholder__hint">AI 识图自动填菜名和分类</span>
+        </button>
+      </div>
+
+      <div class="analyze-status" id="analyzeStatus" hidden></div>
+
+      <label class="field">
+        <span class="field__label">菜名</span>
+        <input type="text" class="field__input" id="dishName" required placeholder="例如：番茄炒蛋" maxlength="50">
+      </label>
+
+      <label class="field">
+        <span class="field__label">分类</span>
+        <select class="field__input" id="dishCategory" required></select>
+      </label>
+
+      <div class="modal__actions">
+        <button type="button" class="btn btn--ghost" id="btnCancelDish">取消</button>
+        <button type="submit" class="btn btn--primary" id="btnSaveDish">保存</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- 设置 -->
+  <button type="button" class="fab-settings" id="btnSettings" title="设置">⚙️</button>
+
+  <dialog class="modal" id="settingsModal">
+    <div class="modal__content">
+      <h2 class="modal__title">设置</h2>
+
+      <label class="field">
+        <span class="field__label">Gemini API Key</span>
+        <input type="password" class="field__input" id="apiKeyInput" placeholder="粘贴你的 API Key" autocomplete="off">
+        <span class="field__hint">仅保存在本机浏览器，用于识图分析</span>
+      </label>
+
+      <div class="settings-actions">
+        <button type="button" class="btn btn--ghost" id="btnExport">导出备份</button>
+        <button type="button" class="btn btn--ghost" id="btnImport">导入备份</button>
+        <input type="file" id="importInput" accept=".json" hidden>
+      </div>
+
+      <div class="modal__actions">
+        <button type="button" class="btn btn--primary" id="btnSaveSettings">保存</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>
